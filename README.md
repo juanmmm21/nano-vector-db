@@ -1,30 +1,30 @@
 # Nano Vector DB
 
-Base de datos vectorial ligera en memoria implementada desde cero en Python. Este modulo proporciona almacenamiento indexado eficiente para busquedas rapidas de similitud de vectores de alta dimension utilizando busqueda exacta (Flat) y busqueda aproximada de vecinos mas cercanos (ANN) mediante el algoritmo HNSW (Hierarchical Navigable Small World).
+Lightweight in-memory vector database implemented from scratch in Python. This module provides efficient indexed storage for fast similarity search over high-dimensional vectors, using exact search (Flat) and approximate nearest neighbor (ANN) search via the HNSW (Hierarchical Navigable Small World) algorithm.
 
-## Arquitectura y Componentes Tecnicos
+## Architecture and Technical Components
 
-El motor de la base de datos se basa en dos esquemas de indexacion y recuperacion:
+The database engine is based on two indexing and retrieval schemes:
 
-### 1. Busqueda Exacta (Flat Index)
-Realiza una busqueda secuencial por fuerza bruta comparando el vector consulta con todos los vectores registrados en la base de datos.
-*   **Complejidad:** $O(N \cdot D)$, donde $N$ es el numero total de vectores y $D$ es la dimension vectorial.
-*   **Ventaja:** Exactitud del 100% y soporte de pre-filtrado nativo eficiente sobre metadatos.
+### 1. Exact Search (Flat Index)
+Performs a brute-force sequential search comparing the query vector against all vectors stored in the database.
+*   **Complexity:** $O(N \cdot D)$, where $N$ is the total number of vectors and $D$ is the vector dimension.
+*   **Advantage:** 100% accuracy and efficient native pre-filtering support on metadata.
 
-### 2. Busqueda Aproximada (HNSW Index)
-Implementa el algoritmo de grafos jerarquicos multicapa para aproximacion rapida. Estructura los vectores en niveles o capas:
+### 2. Approximate Search (HNSW Index)
+Implements the multilayer hierarchical graph algorithm for fast approximation. It structures the vectors into levels or layers:
 
 ```mermaid
 graph TD
-    subgraph Layer2 [Layer 2 - Saltos Largos / Disperso]
+    subgraph Layer2 [Layer 2 - Long Hops / Sparse]
         A1((A)) --- B1((B))
     end
-    subgraph Layer1 [Layer 1 - Enlaces Medios]
+    subgraph Layer1 [Layer 1 - Medium Links]
         A2((A)) --- B2((B))
         A2 --- C2((C))
         B2 --- D2((D))
     end
-    subgraph Layer0 [Layer 0 - Datos Completos / Denso]
+    subgraph Layer0 [Layer 0 - Full Data / Dense]
         A3((A)) --- B3((B))
         A3 --- C3((C))
         B3 --- D3((D))
@@ -39,81 +39,81 @@ graph TD
     D2 -.-> D3
 ```
 
-*   **Capas Superiores:** Grafos dispersos con enlaces largos para saltos rapidos de gran escala (optimizacion de exploracion).
-*   **Capa Inferior (Capa 0):** Contiene la totalidad de los vectores con enlaces densos y de corto alcance para precision local.
-*   **Bucle de Busqueda:** El algoritmo inicia la exploracion en la capa superior buscando el minimo local (nodo mas cercano al query), el cual se utiliza como punto de entrada (entrypoint) en la capa inmediata inferior. Este proceso se repite hasta llegar a la Capa 0, donde se realiza una busqueda codiciosa manteniendo una cola de prioridad de tamano `efSearch` para retornar los mejores candidatos.
-*   **Complejidad:** $O(\log N)$ para busqueda e insercion, lo que permite escalar a millones de vectores.
+*   **Upper Layers:** Sparse graphs with long links for fast, large-scale hops (exploration optimization).
+*   **Lower Layer (Layer 0):** Contains the entirety of the vectors with dense, short-range links for local precision.
+*   **Search Loop:** The algorithm starts exploring at the top layer looking for the local minimum (the node closest to the query), which is used as the entry point in the layer immediately below. This process repeats until reaching Layer 0, where a greedy search is performed maintaining a priority queue of size `efSearch` to return the best candidates.
+*   **Complexity:** $O(\log N)$ for search and insertion, allowing scaling to millions of vectors.
 
-Hiperparametros de control del grafo:
-*   `M`: Cantidad maxima de enlaces bidireccionales por nodo en cada capa.
-*   `M0`: Cantidad maxima de enlaces por nodo en la Capa 0 (fijado en $2 \cdot M$).
-*   `efConstruction`: Numero de vecinos candidatos evaluados durante la insercion.
-*   `efSearch`: Numero de candidatos dinamicos evaluados en la busqueda.
+Graph control hyperparameters:
+*   `M`: Maximum number of bidirectional links per node at each layer.
+*   `M0`: Maximum number of links per node at Layer 0 (fixed at $2 \cdot M$).
+*   `efConstruction`: Number of candidate neighbors evaluated during insertion.
+*   `efSearch`: Number of dynamic candidates evaluated during search.
 
-## Fundamentos Matematicos de Distancia
+## Distance Mathematical Foundations
 
-La base de datos admite tres metricas de distancia implementadas eficientemente mediante NumPy:
+The database supports three distance metrics, efficiently implemented via NumPy:
 
-### Distancia de Coseno
-Mide la diferencia angular entre dos vectores, ignorando su magnitud:
+### Cosine Distance
+Measures the angular difference between two vectors, ignoring their magnitude:
 
 $$D_{\cos}(u, v) = 1.0 - \frac{u \cdot v}{\|u\|_2 \|v\|_2}$$
 
-### Distancia $L_2$ (Euclidea)
-Mide la distancia fisica en linea recta en el espacio cartesiano multi-dimensional:
+### $L_2$ (Euclidean) Distance
+Measures the straight-line physical distance in multi-dimensional Cartesian space:
 
 $$D_{L_2}(u, v) = \sqrt{\sum_{i=1}^{d} (u_i - v_i)^2}$$
 
-### Producto Escalar Invertido
-Adecuado si los vectores ya estan normalizados $L_2$, donde el producto escalar es directamente proporcional a la similitud de coseno:
+### Inverted Dot Product
+Suitable when vectors are already $L_2$ normalized, where the dot product is directly proportional to cosine similarity:
 
 $$D_{\text{dot}}(u, v) = - (u \cdot v)$$
 
-## Filtrado de Metadatos y Fallback Inteligente
+## Metadata Filtering and Smart Fallback
 
-El modulo admite filtros relacionales avanzados de metadatos compatibles con la sintaxis de MongoDB:
-*   `$eq`: Igualdad estricta de valores.
-*   `$ne`: Desigualdad o exclusion de valores.
-*   `$gt` / `$gte`: Mayor que / Mayor o igual que para campos numericos.
-*   `$lt` / `$lte`: Menor que / Menor o igual que.
-*   `$in`: Pertenencia a una lista de elementos validos.
-*   `$nin`: No pertenencia a una lista de elementos.
+The module supports advanced relational metadata filters compatible with MongoDB syntax:
+*   `$eq`: Strict value equality.
+*   `$ne`: Value inequality or exclusion.
+*   `$gt` / `$gte`: Greater than / Greater than or equal to for numeric fields.
+*   `$lt` / `$lte`: Less than / Less than or equal to.
+*   `$in`: Membership in a list of valid elements.
+*   `$nin`: Non-membership in a list of elements.
 
-**Mecanismo de Fallback:** Si un filtro es extremadamente restrictivo (por ejemplo, coincide con menos del 5% de la BD) y la busqueda HNSW no consigue llenar el cupo de resultados `top_k` debido a la poda del grafo, el motor realiza un fallback automatico a la busqueda exacta `Flat` con pre-filtrado sobre los datos para asegurar el retorno de los vecinos mas cercanos existentes.
+**Fallback Mechanism:** If a filter is extremely restrictive (for example, it matches less than 5% of the DB) and the HNSW search fails to fill the `top_k` results quota due to graph pruning, the engine automatically falls back to exact `Flat` search with pre-filtering over the data to ensure the return of the nearest existing neighbors.
 
-## Especificacion de Serializacion (Persistencia)
+## Serialization Specification (Persistence)
 
-El estado completo de la base de datos se guarda en un archivo binario serializado que almacena:
-*   El diccionario plano de vectores indexados.
-*   El diccionario de metadatos asociados por ID.
-*   Las listas de adjacencia y variables estructurales del grafo HNSW (conexiones multicapa y puntos de entrada).
+The complete database state is saved to a serialized binary file that stores:
+*   The flat dictionary of indexed vectors.
+*   The dictionary of metadata associated by ID.
+*   The adjacency lists and structural variables of the HNSW graph (multilayer connections and entry points).
 
-## Requisitos de Instalacion
+## Installation Requirements
 
-*   Python 3.10 o superior
+*   Python 3.10 or higher
 *   NumPy
 
-Para instalar las dependencias especificadas, ejecute:
+To install the specified dependencies, run:
 ```bash
 pip install -r requirements.txt
 ```
 
-## Guia de Ejecucion y Verificacion
+## Execution and Verification Guide
 
-### 1. Ejecutar Pruebas Automatizadas
-Verifica calculos de distancias, filtros y recall del grafo HNSW:
+### 1. Run Automated Tests
+Verifies distance calculations, filters, and HNSW graph recall:
 ```bash
 python3 -m unittest test_db.py
 ```
 
-### 2. Ejecutar Demostración
+### 2. Run Demo
 ```bash
 python3 example.py
 ```
 
-## Conectividad en el Ecosistema ai-core-infra
+## Connectivity within the ai-core-infra Ecosystem
 
-Este proyecto aprovecha la salida de otros modulos:
-*   **contrastive-embedding-trainer:** Carga automaticamente los pesos ajustados de la red siamesa local para generar embeddings semanticos reales sobre textos en lugar de depender de simulaciones deterministicas de hash.
-*   **hybrid-search-retrieval-pipeline:** Proporciona la infraestructura densa del RAG, unificando sus consultas con las del recuperador BM25.
-*   **nexus-second-brain:** Actua como la base de datos vectorial de produccion de la SPA final para almacenar notas segmentadas.
+This project leverages the output of other modules:
+*   **contrastive-embedding-trainer:** Automatically loads the fine-tuned weights of the local siamese network to generate real semantic embeddings over text instead of relying on deterministic hash simulations.
+*   **hybrid-search-retrieval-pipeline:** Provides the RAG's dense infrastructure, unifying its queries with those of the BM25 retriever.
+*   **nexus-second-brain:** Acts as the production vector database for the final SPA to store segmented notes.
