@@ -88,6 +88,24 @@ The complete database state is saved to a serialized binary file that stores:
 *   The dictionary of metadata associated by ID.
 *   The adjacency lists and structural variables of the HNSW graph (multilayer connections and entry points).
 
+## Using it as a package
+
+Since `0.1.0` the code lives in the `nano_vector_db` package and the repository is
+pip-installable, so other projects can depend on it instead of copying files
+or editing `sys.path`:
+
+```bash
+pip install "nano-vector-db @ git+https://github.com/juanmmm21/nano-vector-db.git@v0.1.0"
+```
+
+```python
+from nano_vector_db import NanoVectorDB
+```
+
+The old top-level modules are kept as thin re-exports, so sibling
+`ai-core-infra` repos that add this folder to `sys.path` keep working
+unchanged.
+
 ## Installation Requirements
 
 *   Python 3.10 or higher
