@@ -3,7 +3,7 @@ import time
 import numpy as np
 from typing import List, Tuple, Dict, Any, Optional
 
-from database import NanoVectorDB
+from nano_vector_db.database import NanoVectorDB
 
 # Intentamos importar librerias de Deep Learning para habilitar la busqueda semantica real (Interlinking)
 SEMAN_SEARCH_ENABLED = False

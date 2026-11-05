@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nano-vector-db"
+version = "0.1.0"
+description = "Vector database from scratch: exact (flat) and HNSW approximate nearest-neighbour search with metadata filters."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Juan Martos Cuevas", email = "martoscuevasjuan@gmail.com" }]
+dependencies = [
+    "numpy>=1.20",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["nano_vector_db"]

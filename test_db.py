@@ -5,9 +5,9 @@ import shutil
 import os
 from typing import Dict, Any
 
-from distance import cosine_distance, l2_distance, dot_product_distance
-from hnsw import HNSWIndex
-from database import NanoVectorDB
+from nano_vector_db.distance import cosine_distance, l2_distance, dot_product_distance
+from nano_vector_db.hnsw import HNSWIndex
+from nano_vector_db.database import NanoVectorDB
 
 
 class TestNanoVectorDB(unittest.TestCase):
